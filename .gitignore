@@ -1,0 +1,4 @@
+/target
+# /inputs/*
+!/inputs/.gitkeep
+.env

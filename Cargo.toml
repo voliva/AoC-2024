@@ -1,0 +1,24 @@
+[package]
+name = "aoc-2024"
+version = "0.1.0"
+authors = ["victor"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+queues = "1.1.0"
+reqwest = { version = "0.11.13", features = ["json"]}
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4.0.29", features = ["derive"]}
+chrono = "0.4"
+dotenv = "0.15.0"
+itertools = "0.10.5"
+ndarray = "0.15.6"
+regex = "1.7.0"
+lazy_static = "1.4.0"
+pathfinding = "3.0.14"
+slab_tree = "0.3.2"
+num-bigint = "0.4.3"
+slotmap = "1.0"
+num = "0.4.1"

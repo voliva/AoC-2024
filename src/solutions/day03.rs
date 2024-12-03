@@ -22,7 +22,7 @@ impl Solver for Problem {
     type Output2 = usize;
 
     fn read_input(&self, file_reader: BufReader<&File>) -> Self::Input {
-        let regex = Regex::new(r"(?:(mul)\((\d+),(\d+)\))|(do)\(\)|(don't)\(\)").unwrap();
+        let regex = Regex::new(r"(mul|do|don't)\((?:(\d+),(\d+)|)\)").unwrap();
 
         file_reader
             .lines()
@@ -30,19 +30,15 @@ impl Solver for Problem {
             .flat_map(|line| {
                 regex
                     .captures_iter(&line)
-                    .map(|res| {
-                        if let Some("mul") = res.get(1).map(|v| v.as_str()) {
-                            Instruction::Mul(
-                                res.get(2).unwrap().as_str().parse().unwrap(),
-                                res.get(3).unwrap().as_str().parse().unwrap(),
-                            )
-                        } else if res.get(4).is_some() {
-                            Instruction::Do
-                        } else if res.get(5).is_some() {
-                            Instruction::Dont
-                        } else {
-                            panic!("Unmatched instruction");
-                        }
+                    .filter(|v| v.get(1).unwrap().as_str() != "mul" || v.len() > 2)
+                    .map(|res| match res.get(1).unwrap().as_str() {
+                        "mul" => Instruction::Mul(
+                            res.get(2).unwrap().as_str().parse().unwrap(),
+                            res.get(3).unwrap().as_str().parse().unwrap(),
+                        ),
+                        "do" => Instruction::Do,
+                        "don't" => Instruction::Dont,
+                        _ => panic!("Unmatched instruction"),
                     })
                     .collect_vec()
             })

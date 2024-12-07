@@ -130,7 +130,7 @@ impl Solver for Problem {
 
         let (mut r, mut c) = position;
         let mut direction = Direction::Up;
-        let mut steps = 0;
+        // let mut steps = 0;
         let mut result = HashSet::new();
         let mut trail = HashSet::new();
         trail.insert(position.clone());
@@ -159,7 +159,7 @@ impl Solver for Problem {
             }
 
             (r, c) = new_pos;
-            steps += 1;
+            // steps += 1;
             trail.insert(new_pos);
         }
 

@@ -1,8 +1,9 @@
 use itertools::Itertools;
 
+use crate::many_to_many::ManyToMany;
+
 use super::Solver;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::str::FromStr;
@@ -11,7 +12,7 @@ pub struct Problem;
 
 #[derive(Debug)]
 pub struct Input {
-    rules: HashMap<usize, HashSet<usize>>,
+    rules: ManyToMany<usize, usize>,
     updates: Vec<Vec<usize>>,
 }
 
@@ -21,7 +22,7 @@ impl FromStr for Input {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut part = 0;
         let mut result: Input = Input {
-            rules: HashMap::new(),
+            rules: ManyToMany::new(),
             updates: Vec::new(),
         };
         for line in s.lines() {
@@ -32,17 +33,7 @@ impl FromStr for Input {
                 let from_v: usize = from.parse().or(Err("not parsing"))?;
                 let to_v: usize = to.parse().or(Err("not parsing"))?;
 
-                result
-                    .rules
-                    .entry(from_v)
-                    .and_modify(|set| {
-                        set.insert(to_v);
-                    })
-                    .or_insert({
-                        let mut set = HashSet::new();
-                        set.insert(to_v);
-                        set
-                    });
+                result.rules.insert(from_v, to_v);
             } else {
                 result
                     .updates
@@ -53,13 +44,13 @@ impl FromStr for Input {
     }
 }
 
-fn update_is_valid(rules: &HashMap<usize, HashSet<usize>>, update: &Vec<usize>) -> bool {
+fn update_is_valid(rules: &ManyToMany<usize, usize>, update: &Vec<usize>) -> bool {
     update.iter().enumerate().all(|(i, v)| {
         if i == update.len() - 1 {
             return true;
         }
         update[(i + 1)..].iter().all(|other| {
-            let set = rules.get(other);
+            let set = rules.outer().get(other);
             let result = set.is_none() || !set.unwrap().contains(v);
             // println!("{:?}, {} -> {result}", set, v);
             return result;
@@ -67,15 +58,15 @@ fn update_is_valid(rules: &HashMap<usize, HashSet<usize>>, update: &Vec<usize>) 
     })
 }
 
-fn sort_update(rules: &HashMap<usize, HashSet<usize>>, update: &Vec<usize>) -> Vec<usize> {
+fn sort_update(rules: &ManyToMany<usize, usize>, update: &Vec<usize>) -> Vec<usize> {
     let mut result = update.clone();
     result.sort_by(|a, b| {
-        if let Some(rule_a) = rules.get(a) {
+        if let Some(rule_a) = rules.outer().get(a) {
             if rule_a.contains(b) {
                 return Ordering::Greater;
             }
         }
-        if let Some(rule_b) = rules.get(b) {
+        if let Some(rule_b) = rules.outer().get(b) {
             if rule_b.contains(a) {
                 return Ordering::Less;
             }

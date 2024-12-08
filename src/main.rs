@@ -2,6 +2,8 @@ use chrono::Datelike;
 use clap::{Args, Parser};
 use std::io::Read;
 
+mod coordinate;
+mod many_to_many;
 mod solutions;
 extern crate lazy_static;
 

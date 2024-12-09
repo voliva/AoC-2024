@@ -29,8 +29,7 @@ impl Solver for Problem {
             .iter()
             .enumerate()
             .map(|(_, v)| *v)
-            .reduce(|a, b| a + b)
-            .unwrap();
+            .fold(0, |a, b| a + b);
 
         let mut result: Vec<Option<usize>> = Vec::with_capacity(length);
         for (i, value) in input.iter().enumerate() {
@@ -43,43 +42,28 @@ impl Solver for Problem {
             }
         }
 
-        let mut explored = 0;
-        while let Some((start, length)) = find_end_block(&result, explored) {
-            let gap = find_start_gap(&result, explored).unwrap_or(0);
-            let id = result[start].unwrap();
-
-            for i in start..(start + length) {
-                result[i] = None;
+        let mut start = 0;
+        let mut end = result.len() - 1;
+        while start < end {
+            while start < end && result[start].is_some() {
+                start += 1;
             }
-            let mut to_fill = length;
-            for i in gap.. {
-                if result[i].is_none() {
-                    result[i] = Some(id);
-                    to_fill -= 1;
-                }
-                if to_fill == 0 {
-                    break;
-                }
-                explored = i;
+            while start < end && result[end].is_none() {
+                end -= 1;
+            }
+            if start < end {
+                result[start] = result[end];
+                result[end] = None;
+                start += 1;
+                end -= 1;
             }
         }
 
-        // println!(
-        //     "{:?}",
-        //     result
-        //         .iter()
-        //         .filter(|v| v.is_some())
-        //         .map(|v| v.unwrap() % 10)
-        //         .join("")
-        // );
-
-        // 6346805260911
         Ok(result
             .iter()
             .enumerate()
             .map(|(i, v)| i * v.unwrap_or(0))
-            .reduce(|a, b| a + b)
-            .unwrap())
+            .fold(0, |a, b| a + b))
     }
 
     fn solve_second(&self, input: &Self::Input) -> Result<Self::Output2, String> {
@@ -118,45 +102,16 @@ impl Solver for Problem {
 
         Ok(files
             .iter()
-            .flat_map(|(id, block)| {
+            .map(|(id, block)| {
                 (block.position..(block.position + block.length))
                     .map(|i| i * id)
-                    .collect_vec()
+                    .fold(0, |a, b| a + b)
             })
-            .reduce(|a, b| a + b)
-            .unwrap())
+            .fold(0, |a, b| a + b))
     }
 }
 
 struct Block {
     position: usize,
     length: usize,
-}
-
-fn find_end_block<T: PartialEq + Copy>(
-    vec: &Vec<Option<T>>,
-    explored: usize,
-) -> Option<(usize, usize)> {
-    let mut len = 0;
-    let mut value = None;
-    for i in (explored..vec.len()).rev() {
-        if vec[i].is_some() {
-            if value.is_some() && vec[i] != value {
-                return Some((i + 1, len));
-            }
-            value = vec[i];
-            len += 1;
-        } else if vec[i].is_none() && len > 0 {
-            return Some((i + 1, len));
-        }
-    }
-    return None;
-}
-fn find_start_gap<T>(vec: &Vec<Option<T>>, explored: usize) -> Option<usize> {
-    for i in explored..vec.len() {
-        if vec[i].is_none() {
-            return Some(i);
-        }
-    }
-    return None;
 }

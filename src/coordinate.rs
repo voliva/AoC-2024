@@ -22,6 +22,22 @@ impl Coordinate {
     pub fn euclidean_distance(&self) -> isize {
         self.0.abs() + self.1.abs()
     }
+
+    pub fn apply_vec<'a, T>(&self, vec: &'a Vec<Vec<T>>) -> Option<&'a T> {
+        if (self.0 < 0 || self.1 < 0) {
+            return None;
+        }
+        vec.get(self.0 as usize)
+            .and_then(|i| i.get(self.1 as usize))
+    }
+    pub fn cardinals(&self) -> Vec<Coordinate> {
+        vec![
+            self.clone() + Coordinate::from(Direction::Up),
+            self.clone() + Coordinate::from(Direction::Right),
+            self.clone() + Coordinate::from(Direction::Down),
+            self.clone() + Coordinate::from(Direction::Left),
+        ]
+    }
 }
 
 impl_op_ex!(+|a: &Coordinate, b: &Coordinate| -> Coordinate { Coordinate(a.0 + b.0, a.1 + b.1) });

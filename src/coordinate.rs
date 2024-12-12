@@ -30,13 +30,15 @@ impl Coordinate {
         vec.get(self.0 as usize)
             .and_then(|i| i.get(self.1 as usize))
     }
+
+    pub fn apply_dir(&self, dir: Direction) -> Coordinate {
+        self.clone() + Coordinate::from(dir)
+    }
     pub fn cardinals(&self) -> Vec<Coordinate> {
-        vec![
-            self.clone() + Coordinate::from(Direction::Up),
-            self.clone() + Coordinate::from(Direction::Right),
-            self.clone() + Coordinate::from(Direction::Down),
-            self.clone() + Coordinate::from(Direction::Left),
-        ]
+        CARDINALS
+            .iter()
+            .map(|d| self.apply_dir(d.clone()))
+            .collect()
     }
 }
 
@@ -76,6 +78,13 @@ pub enum Direction {
     Left,
     Right,
 }
+
+pub const CARDINALS: &'static [Direction] = &[
+    Direction::Up,
+    Direction::Right,
+    Direction::Down,
+    Direction::Left,
+];
 
 impl From<Direction> for Coordinate {
     fn from(value: Direction) -> Self {

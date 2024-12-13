@@ -5,7 +5,6 @@ use crate::coordinate::{get_coordinates_from, Coordinate, Direction, CARDINALS};
 use super::Solver;
 use std::collections::HashMap;
 use std::fs::File;
-use std::hash::Hash;
 use std::io::{BufRead, BufReader};
 
 pub struct Problem;

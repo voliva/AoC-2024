@@ -31,14 +31,14 @@ impl Coordinate {
             .and_then(|i| i.get(self.1 as usize))
     }
 
-    pub fn apply_dir(&self, dir: Direction) -> Coordinate {
+    pub fn apply_dir(&self, dir: &Direction) -> Coordinate {
         self.clone() + Coordinate::from(dir)
     }
     pub fn cardinals(&self) -> Vec<Coordinate> {
-        CARDINALS
-            .iter()
-            .map(|d| self.apply_dir(d.clone()))
-            .collect()
+        CARDINALS.iter().map(|d| self.apply_dir(d)).collect()
+    }
+    pub fn max(&self, other: &Coordinate) -> Coordinate {
+        Coordinate(self.0.max(other.0), self.1.max(other.1))
     }
 }
 
@@ -71,7 +71,7 @@ pub fn get_coordinates_from<T>(input: &Vec<Vec<T>>) -> impl Iterator<Item = (Coo
     })
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Debug, Eq, Hash, Clone)]
 pub enum Direction {
     Up,
     Down,
@@ -129,6 +129,15 @@ impl Direction {
             Self::Down => Self::Up,
             Self::Left => Self::Right,
             Self::Right => Self::Left,
+        }
+    }
+    pub fn from_arrow_char(c: char) -> Option<Self> {
+        match c {
+            '^' => Some(Direction::Up),
+            '>' => Some(Direction::Right),
+            'v' => Some(Direction::Down),
+            '<' => Some(Direction::Left),
+            _ => None,
         }
     }
 }

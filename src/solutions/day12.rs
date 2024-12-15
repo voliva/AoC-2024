@@ -97,34 +97,34 @@ impl Solver for Problem {
 
                     let is_side = match card {
                         Direction::Left => {
-                            coord.apply_dir(Direction::Up).apply_vec(input) != Some(char)
+                            coord.apply_dir(&Direction::Up).apply_vec(input) != Some(char)
                                 || coord
-                                    .apply_dir(Direction::Up)
-                                    .apply_dir(Direction::Left)
+                                    .apply_dir(&Direction::Up)
+                                    .apply_dir(&Direction::Left)
                                     .apply_vec(input)
                                     == Some(char)
                         }
                         Direction::Right => {
-                            coord.apply_dir(Direction::Up).apply_vec(input) != Some(char)
+                            coord.apply_dir(&Direction::Up).apply_vec(input) != Some(char)
                                 || coord
-                                    .apply_dir(Direction::Up)
-                                    .apply_dir(Direction::Right)
+                                    .apply_dir(&Direction::Up)
+                                    .apply_dir(&Direction::Right)
                                     .apply_vec(input)
                                     == Some(char)
                         }
                         Direction::Up => {
-                            coord.apply_dir(Direction::Left).apply_vec(input) != Some(char)
+                            coord.apply_dir(&Direction::Left).apply_vec(input) != Some(char)
                                 || coord
-                                    .apply_dir(Direction::Up)
-                                    .apply_dir(Direction::Left)
+                                    .apply_dir(&Direction::Up)
+                                    .apply_dir(&Direction::Left)
                                     .apply_vec(input)
                                     == Some(char)
                         }
                         Direction::Down => {
-                            coord.apply_dir(Direction::Left).apply_vec(input) != Some(char)
+                            coord.apply_dir(&Direction::Left).apply_vec(input) != Some(char)
                                 || coord
-                                    .apply_dir(Direction::Down)
-                                    .apply_dir(Direction::Left)
+                                    .apply_dir(&Direction::Down)
+                                    .apply_dir(&Direction::Left)
                                     .apply_vec(input)
                                     == Some(char)
                         }

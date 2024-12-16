@@ -19,8 +19,8 @@ impl Coordinate {
         start.0 <= self.0 && self.0 < end.0 && start.1 <= self.1 && self.1 < end.1
     }
 
-    pub fn euclidean_distance(&self) -> isize {
-        self.0.abs() + self.1.abs()
+    pub fn euclidean_distance(&self, other: &Coordinate) -> isize {
+        (self.0 - other.0).abs() + (self.1 - other.1).abs()
     }
 
     pub fn apply_vec<'a, T>(&self, vec: &'a Vec<Vec<T>>) -> Option<&'a T> {

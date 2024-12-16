@@ -28,9 +28,44 @@ pub struct State {
     facing: Direction,
 }
 
+impl State {
+    fn successors(&self, grid: &Vec<Vec<char>>) -> Vec<(State, usize)> {
+        let mut result = vec![
+            (
+                State {
+                    position: self.position.clone(),
+                    facing: self.facing.turn_90_left(),
+                },
+                1000,
+            ),
+            (
+                State {
+                    position: self.position.clone(),
+                    facing: self.facing.turn_90_right(),
+                },
+                1000,
+            ),
+        ];
+        let forward = self.position.apply_dir(&self.facing);
+        if let Some(c) = forward.apply_vec(grid) {
+            if *c != '#' {
+                result.push((
+                    State {
+                        position: forward,
+                        facing: self.facing.clone(),
+                    },
+                    1,
+                ));
+            }
+        }
+
+        result
+    }
+}
+
 impl Solver for Problem {
     type Input = Vec<Vec<char>>;
-    type Output1 = isize;
+    type Output1 = usize;
     type Output2 = usize;
 
     fn read_input(&self, file_reader: BufReader<&File>) -> Self::Input {
@@ -51,39 +86,8 @@ impl Solver for Problem {
         };
         let result = astar(
             &initial_state,
-            |state| {
-                let mut result = vec![
-                    (
-                        State {
-                            position: state.position.clone(),
-                            facing: state.facing.turn_90_left(),
-                        },
-                        1000,
-                    ),
-                    (
-                        State {
-                            position: state.position.clone(),
-                            facing: state.facing.turn_90_right(),
-                        },
-                        1000,
-                    ),
-                ];
-                let forward = state.position.apply_dir(&state.facing);
-                if let Some(c) = forward.apply_vec(input) {
-                    if *c != '#' {
-                        result.push((
-                            State {
-                                position: forward,
-                                facing: state.facing.clone(),
-                            },
-                            1,
-                        ));
-                    }
-                }
-
-                result
-            },
-            |state| state.position.euclidean_distance(&end),
+            |state| state.successors(input),
+            |state| state.position.euclidean_distance(&end) as usize,
             |state| state.position == end,
         )
         .unwrap();
@@ -101,39 +105,8 @@ impl Solver for Problem {
         };
         let result = astar_bag_collect(
             &initial_state,
-            |state| {
-                let mut result = vec![
-                    (
-                        State {
-                            position: state.position.clone(),
-                            facing: state.facing.turn_90_left(),
-                        },
-                        1000,
-                    ),
-                    (
-                        State {
-                            position: state.position.clone(),
-                            facing: state.facing.turn_90_right(),
-                        },
-                        1000,
-                    ),
-                ];
-                let forward = state.position.apply_dir(&state.facing);
-                if let Some(c) = forward.apply_vec(input) {
-                    if *c != '#' {
-                        result.push((
-                            State {
-                                position: forward,
-                                facing: state.facing.clone(),
-                            },
-                            1,
-                        ));
-                    }
-                }
-
-                result
-            },
-            |state| state.position.euclidean_distance_to(&end),
+            |state| state.successors(input),
+            |state| state.position.euclidean_distance(&end) as usize,
             |state| state.position == end,
         )
         .unwrap();

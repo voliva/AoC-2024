@@ -119,3 +119,33 @@ impl Solver for Problem {
         Ok(coordinates.len())
     }
 }
+
+/*
+At some point I wanted a nested HashSet/HashMap. Here's how to impl Hash for one.
+https://stackoverflow.com/questions/36562419/hashset-as-key-for-other-hashset
+
+struct StateSet(HashSet<State>);
+
+impl PartialEq for StateSet {
+    fn eq(&self, other: &StateSet) -> bool {
+        self.0.is_subset(&other.0) && other.0.is_subset(&self.0)
+    }
+}
+
+impl Eq for StateSet {}
+
+impl Hash for StateSet {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        let mut a: Vec<&State> = self.0.iter().collect();
+        a.sort();
+        for s in a.iter() {
+            s.hash(state);
+        }
+    }
+
+}
+
+fn main() {
+    let hmap: HashSet<StateSet> = HashSet::new();
+}
+ */

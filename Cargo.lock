@@ -104,6 +104,7 @@ dependencies = [
  "num",
  "num-bigint",
  "pathfinding",
+ "priority-queue",
  "queues",
  "regex",
  "reqwest",
@@ -1036,6 +1037,17 @@ name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
+
+[[package]]
+name = "priority-queue"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "714c75db297bc88a63783ffc6ab9f830698a6705aa0201416931759ef4c8183d"
+dependencies = [
+ "autocfg",
+ "equivalent",
+ "indexmap 2.7.0",
+]
 
 [[package]]
 name = "proc-macro2"

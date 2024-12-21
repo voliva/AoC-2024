@@ -5,7 +5,8 @@ use crate::coordinate::{Coordinate, Direction, CARDINALS};
 
 use super::Solver;
 use core::panic;
-use std::collections::HashSet;
+use std::borrow::Borrow;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::str::FromStr;
@@ -22,7 +23,7 @@ impl FromStr for Code {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let code = s.chars().collect_vec();
-        let value = s[0..3].parse().unwrap();
+        let value = s[0..(s.len() - 1).max(1)].parse().unwrap();
         return Ok(Code { value, code });
     }
 }
@@ -42,6 +43,15 @@ impl Action {
             Coordinate(1, 1) => Action::Move(Direction::Down),
             Coordinate(1, 2) => Action::Move(Direction::Right),
             _ => panic!(),
+        }
+    }
+    fn to_coordinate(&self) -> Coordinate {
+        match self {
+            Action::Push => Coordinate(0, 2),
+            Action::Move(Direction::Up) => Coordinate(0, 1),
+            Action::Move(Direction::Left) => Coordinate(1, 0),
+            Action::Move(Direction::Down) => Coordinate(1, 1),
+            Action::Move(Direction::Right) => Coordinate(1, 2),
         }
     }
 }
@@ -74,6 +84,199 @@ fn get_direction(from: &Coordinate, to: &Coordinate, is_numeric: bool) -> Vec<Di
     }
 
     result
+}
+
+fn char_to_coordinate(char: char) -> Coordinate {
+    if char == 'A' {
+        Coordinate(3, 2)
+    } else if char == '0' {
+        Coordinate(3, 1)
+    } else {
+        let i_val = (char as isize) - ('1' as isize);
+        Coordinate(2 - i_val / 3, i_val % 3)
+    }
+}
+
+fn get_horizontal_direction(c: isize) -> Direction {
+    if c < 0 {
+        Direction::Left
+    } else {
+        Direction::Right
+    }
+}
+fn get_vertical_direction(r: isize) -> Direction {
+    if r < 0 {
+        Direction::Up
+    } else {
+        Direction::Down
+    }
+}
+
+fn get_preferred<'a>(
+    starting: &Coordinate,
+    hd: &'a Direction,
+    vd: &'a Direction,
+) -> Option<&'a Direction> {
+    let hc = direction_to_pos(hd);
+    let vc = direction_to_pos(vd);
+    let to = Coordinate(0, 2);
+
+    // first horizontal cost
+    let fhc = starting.euclidean_distance(&hc) + vc.euclidean_distance(&to);
+    let fvc = starting.euclidean_distance(&vc) + hc.euclidean_distance(&to);
+
+    if fhc > fvc {
+        Some(vd)
+    } else if fhc < fvc {
+        Some(hd)
+    } else {
+        None
+    }
+}
+
+fn get_paths(
+    from: &Coordinate,
+    to: &Coordinate,
+    forbidden: &Coordinate,
+    // start position on DPAD
+    // starting: &Coordinate,
+) -> Vec<Vec<Direction>> {
+    let Coordinate(r, c) = to - from;
+
+    match (r, c) {
+        (0, 0) => vec![vec![]],
+        (0, c) => vec![vec![get_horizontal_direction(c); c.abs() as usize]],
+        (r, 0) => vec![vec![get_vertical_direction(r); r.abs() as usize]],
+        (r, c) => {
+            let hd = get_horizontal_direction(c);
+            let vd = get_vertical_direction(r);
+
+            let preferred = None; // get_preferred(starting, &hd, &vd);
+
+            let fh = from.0 == forbidden.0 && to.1 == forbidden.1;
+            let fv = from.1 == forbidden.1 && to.0 == forbidden.0;
+
+            let first_horizontal = if fh || (!fv && preferred.is_some() && preferred == Some(&vd)) {
+                None
+            } else {
+                let mut result = vec![hd.clone(); c.abs() as usize];
+                for _ in 0..r.abs() {
+                    result.push(vd.clone());
+                }
+                Some(result)
+            };
+            let first_vertical = if fv || (!fh && preferred.is_some() && preferred == Some(&hd)) {
+                None
+            } else {
+                let mut result = vec![vd; r.abs() as usize];
+                let direction = hd;
+                for _ in 0..c.abs() {
+                    result.push(direction.clone());
+                }
+                Some(result)
+            };
+
+            vec![first_horizontal, first_vertical]
+                .into_iter()
+                .filter_map(|v| v)
+                .collect()
+        }
+    }
+}
+
+fn get_length(
+    from: &Coordinate,
+    to: &Coordinate,
+    depth: usize,
+    max_depth: usize,
+    cache: &mut HashMap<(Coordinate, Coordinate, usize), usize>,
+) -> usize {
+    let key = (from.clone(), to.clone(), depth);
+    if cache.contains_key(&key) {
+        return *cache.get(&key).unwrap();
+    }
+
+    let forbidden = if depth == 1 {
+        Coordinate(3, 0)
+    } else {
+        Coordinate(0, 0)
+    };
+    let paths = get_paths(&from, &to, &forbidden);
+    // for _ in 1..depth {
+    //     print!(" ");
+    // }
+    // println!("paths {:?}->{:?} {:?}", from, to, paths);
+
+    let result = if depth == max_depth {
+        paths.iter().map(|p| p.len()).min().unwrap() + 1
+    } else {
+        paths
+            .iter()
+            .map(|p| -> usize {
+                vec![Action::Push]
+                    .into_iter()
+                    .chain(p.iter().map(|v| Action::Move(v.clone())))
+                    .chain(vec![Action::Push])
+                    .tuple_windows()
+                    .map(|(prev, next)| {
+                        get_length(
+                            &prev.to_coordinate(),
+                            &next.to_coordinate(),
+                            depth + 1,
+                            max_depth,
+                            cache,
+                        )
+                    })
+                    .sum()
+            })
+            .min()
+            .unwrap()
+    };
+
+    cache.insert(key, result);
+    return result;
+}
+
+fn get_code_actions(code: &[char]) -> Vec<Vec<Action>> {
+    let mut position = Coordinate(3, 2);
+    let forbidden = Coordinate(3, 0);
+    // let confirm = Coordinate(0, 2);
+
+    for c in code {
+        let dest = char_to_coordinate(*c);
+        let paths = get_paths(&position, &dest, &forbidden);
+        println!("{:?}, {:?} -> {:?}", paths, position, dest);
+        position = dest;
+    }
+
+    todo!()
+}
+
+fn get_code_length(
+    code: &[char],
+    depth: usize,
+    cache: &mut HashMap<(Coordinate, Coordinate, usize), usize>,
+) -> usize {
+    vec!['A']
+        .iter()
+        .chain(code)
+        .map(|c| char_to_coordinate(*c))
+        .tuple_windows()
+        .map(|(prev, next)| get_length(&prev, &next, 1, depth, cache))
+        .sum::<usize>()
+
+    // let mut position = Coordinate(3, 2);
+    // let forbidden = Coordinate(3, 0);
+    // // let confirm = Coordinate(0, 2);
+
+    // for c in code {
+    //     let dest = char_to_coordinate(*c);
+    //     let paths = get_paths(&position, &dest, &forbidden);
+    //     println!("{:?}, {:?} -> {:?}", paths, position, dest);
+    //     position = dest;
+    // }
+
+    // todo!()
 }
 
 fn direction_to_pos(dir: &Direction) -> Coordinate {
@@ -232,14 +435,7 @@ impl State {
             assert!(idx == self.positions.len());
 
             let char = code[self.found];
-            vec![if char == 'A' {
-                Coordinate(3, 2)
-            } else if char == '0' {
-                Coordinate(3, 1)
-            } else {
-                let i_val = (char as isize) - ('1' as isize);
-                Coordinate(2 - i_val / 3, i_val % 3)
-            }]
+            vec![char_to_coordinate(char)]
         }
     }
 
@@ -319,19 +515,31 @@ impl Solver for Problem {
             .iter()
             .map(|code| {
                 let result = solve(code, 2).unwrap();
+                // println!("first {}", result.len() - 1);
                 code.value * (result.len() - 1) as isize
             })
             .sum())
     }
 
     fn solve_second(&self, input: &Self::Input) -> Result<Self::Output2, String> {
+        let mut cache = HashMap::new();
+
         Ok(input
             .iter()
             .map(|code| {
-                println!("Do it");
-                let result = solve(code, 25).unwrap();
-                code.value * (result.len() - 1) as isize
+                let result = get_code_length(&code.code, 26, &mut cache);
+                // println!("second {}", result);
+                code.value * result as isize
             })
             .sum())
+        // Ok(get_code_length(&input[0].code, 3, &mut cache))
+        // Ok(input
+        //     .iter()
+        //     .map(|code| {
+        //         println!("Do it");
+        //         let result = solve(code, 25).unwrap();
+        //         code.value * (result.len() - 1) as isize
+        //     })
+        //     .sum())
     }
 }

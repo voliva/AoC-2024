@@ -1,11 +1,11 @@
 use itertools::Itertools;
 use pathfinding::prelude::dijkstra;
 
-use crate::coordinate::{Coordinate, Direction, CARDINALS};
+use crate::coordinate::{Coordinate, Direction};
 
 use super::Solver;
 use core::panic;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::str::FromStr;
@@ -182,7 +182,7 @@ impl State {
         }
     }
 
-    fn get_targets(&self, idx: usize, code: &[char]) -> Vec<Coordinate> {
+    fn get_targets(&self, idx: usize, code: &[char]) -> Vec<(Coordinate, usize)> {
         if idx < self.positions.len() {
             let child_is_last = idx + 1 >= self.positions.len();
             let child_position = if child_is_last {
@@ -191,38 +191,38 @@ impl State {
                 &self.positions[idx + 1]
             };
 
-            let result: HashSet<Coordinate> = self
+            let result: HashMap<Coordinate, usize> = self
                 .get_targets(idx + 1, code)
                 .into_iter()
-                .flat_map(|child_target| {
+                .flat_map(|(child_target, child_cost)| {
                     if child_position == &child_target {
-                        vec![Coordinate(0, 2)]
+                        vec![(Coordinate(0, 2), child_cost)]
                     } else {
                         let directions =
                             get_direction(child_position, &child_target, child_is_last);
                         let current_pos = &self.positions[idx];
 
-                        let positions_with_distance = directions
+                        //let positions_with_distance =
+                        directions
                             .iter()
                             .map(|dir| direction_to_pos(dir))
                             .map(|pos| {
                                 let distance = pos.euclidean_distance(current_pos);
-                                (pos, distance)
+                                (pos, child_cost + distance as usize)
                             })
-                            .collect_vec();
+                            .collect()
 
                         // let min_distance = positions_with_distance
                         //     .iter()
                         //     .map(|(_, v)| v)
                         //     .min()
                         //     .unwrap();
-
-                        positions_with_distance
-                            .iter()
-                            // .filter(|(_, v)| v == min_distance)
-                            .map(|(v, _)| v)
-                            .cloned()
-                            .collect()
+                        // positions_with_distance
+                        //     .iter()
+                        //     // .filter(|(_, v)| v == min_distance)
+                        //     .map(|(v, _)| v)
+                        //     .cloned()
+                        //     .collect()
                     }
                 })
                 .collect();
@@ -233,29 +233,29 @@ impl State {
 
             let char = code[self.found];
             vec![if char == 'A' {
-                Coordinate(3, 2)
+                (Coordinate(3, 2), 0)
             } else if char == '0' {
-                Coordinate(3, 1)
+                (Coordinate(3, 1), 0)
             } else {
                 let i_val = (char as isize) - ('1' as isize);
-                Coordinate(2 - i_val / 3, i_val % 3)
+                (Coordinate(2 - i_val / 3, i_val % 3), 0)
             }]
         }
     }
 
-    fn get_best_action(&self, code: &[char]) -> Vec<Action> {
+    fn get_best_action(&self, code: &[char]) -> Vec<(Action, usize)> {
         let position = &self.positions[0];
 
         let result = self
             .get_targets(0, code)
             .into_iter()
-            .flat_map(|target| {
+            .flat_map(|(target, cost)| {
                 if &target == position {
-                    vec![Action::Push]
+                    vec![(Action::Push, cost)]
                 } else {
                     get_direction(position, &target, false)
                         .iter()
-                        .map(|dir| Action::Move(dir.clone()))
+                        .map(|dir| (Action::Move(dir.clone()), cost))
                         .collect()
                 }
             })
@@ -278,8 +278,9 @@ impl State {
         // result
         self.get_best_action(code)
             .into_iter()
-            .filter_map(|action| self.perform_action(action, code))
-            .map(|v| (v, 1))
+            .filter_map(|(action, cost)| {
+                self.perform_action(action, code).map(|state| (state, cost))
+            })
             .collect()
     }
 }

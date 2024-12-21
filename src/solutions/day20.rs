@@ -1,5 +1,5 @@
 use super::Solver;
-use crate::coordinate::{Coordinate, ZERO};
+use crate::coordinate::Coordinate;
 use itertools::Itertools;
 use priority_queue::PriorityQueue;
 use std::collections::{HashMap, HashSet};

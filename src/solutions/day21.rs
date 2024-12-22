@@ -1,11 +1,10 @@
 use itertools::Itertools;
 use pathfinding::prelude::dijkstra;
 
-use crate::coordinate::{Coordinate, Direction, CARDINALS};
+use crate::coordinate::{Coordinate, Direction};
 
 use super::Solver;
 use core::panic;
-use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -112,28 +111,6 @@ fn get_vertical_direction(r: isize) -> Direction {
     }
 }
 
-fn get_preferred<'a>(
-    starting: &Coordinate,
-    hd: &'a Direction,
-    vd: &'a Direction,
-) -> Option<&'a Direction> {
-    let hc = direction_to_pos(hd);
-    let vc = direction_to_pos(vd);
-    let to = Coordinate(0, 2);
-
-    // first horizontal cost
-    let fhc = starting.euclidean_distance(&hc) + vc.euclidean_distance(&to);
-    let fvc = starting.euclidean_distance(&vc) + hc.euclidean_distance(&to);
-
-    if fhc > fvc {
-        Some(vd)
-    } else if fhc < fvc {
-        Some(hd)
-    } else {
-        None
-    }
-}
-
 fn get_paths(
     from: &Coordinate,
     to: &Coordinate,
@@ -235,21 +212,6 @@ fn get_length(
 
     cache.insert(key, result);
     return result;
-}
-
-fn get_code_actions(code: &[char]) -> Vec<Vec<Action>> {
-    let mut position = Coordinate(3, 2);
-    let forbidden = Coordinate(3, 0);
-    // let confirm = Coordinate(0, 2);
-
-    for c in code {
-        let dest = char_to_coordinate(*c);
-        let paths = get_paths(&position, &dest, &forbidden);
-        println!("{:?}, {:?} -> {:?}", paths, position, dest);
-        position = dest;
-    }
-
-    todo!()
 }
 
 fn get_code_length(

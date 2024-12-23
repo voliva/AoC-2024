@@ -4,7 +4,6 @@ use super::Solver;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-
 pub struct Problem;
 
 fn next_secret(secret: isize) -> isize {

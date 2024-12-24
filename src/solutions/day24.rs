@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use super::Solver;
+use core::panic;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -39,15 +40,11 @@ impl Operation {
     }
 }
 
-fn get_value(
-    key: &String,
-    ops: &HashMap<String, Operation>,
-    values: &mut HashMap<String, u8>,
-) -> u8 {
+fn get_value(key: &str, ops: &HashMap<String, Operation>, values: &mut HashMap<String, u8>) -> u8 {
     if values.contains_key(key) {
         return *values.get(key).unwrap();
     }
-    values.insert(key.clone(), 0);
+    values.insert(key.to_string(), 0);
 
     let op = ops.get(key).unwrap();
     let result = match op {
@@ -56,7 +53,7 @@ fn get_value(
         Operation::AND(l, r) => get_value(&l, ops, values) & get_value(&r, ops, values),
         Operation::Hard(v) => *v,
     };
-    values.insert(key.clone(), result);
+    values.insert(key.to_string(), result);
     result
 }
 
@@ -95,104 +92,296 @@ fn test_half_add(position: usize, key: &String, ops: &HashMap<String, Operation>
 
     true
 }
-
-fn test_carry(
+fn find_half_add(
     position: usize,
-    key: &String,
-    prev_carry: &Option<String>,
     ops: &HashMap<String, Operation>,
-) -> bool {
-    let x_key = format!("x{:0>2}", position - 1);
-    let y_key = format!("y{:0>2}", position - 1);
-
-    let mut ops = ops.clone();
-
-    if let Some(prev_carry) = prev_carry {
-        for c in 0..2 {
-            ops.insert(prev_carry.clone(), Operation::Hard(c));
-            for x in 0..2 {
-                ops.insert(x_key.clone(), Operation::Hard(x));
-                for y in 0..2 {
-                    ops.insert(y_key.clone(), Operation::Hard(y));
-                    let v = get_value(&key, &ops, &mut HashMap::new());
-                    let correct = (x & y) | ((x ^ y) & c);
-                    if v != correct {
-                        return false;
-                    }
-                }
-            }
+    fixed: &HashSet<String>,
+) -> Option<String> {
+    for k in ops.keys() {
+        if !fixed.contains(k) && test_half_add(position, k, ops) {
+            return Some(k.clone());
         }
-    } else {
-        for x in 0..2 {
-            ops.insert(x_key.clone(), Operation::Hard(x));
-            for y in 0..2 {
-                ops.insert(y_key.clone(), Operation::Hard(y));
-                if get_value(&key, &ops, &mut HashMap::new()) != (x & y) {
-                    return false;
-                }
+    }
+    None
+}
+
+fn test_and(key_a: &str, key_b: &str, key: &str, ops: &HashMap<String, Operation>) -> bool {
+    let mut ops = ops.clone();
+    for x in 0..2 {
+        ops.insert(key_a.to_string(), Operation::Hard(x));
+        for y in 0..2 {
+            ops.insert(key_b.to_string(), Operation::Hard(y));
+            if get_value(key, &ops, &mut HashMap::new()) != x & y {
+                return false;
             }
         }
     }
 
     true
 }
-
-pub enum TestResult {
-    Ok(String),
-    Root,
-    Carry(String),
-    Half(String),
-}
-
-fn test_position(
-    position: usize,
-    prev_carry: &Option<String>,
+fn find_and(
+    key_a: &str,
+    key_b: &str,
     ops: &HashMap<String, Operation>,
-) -> TestResult {
-    let key = format!("z{:0>2}", position);
-
-    let op = ops.get(&key).unwrap();
-    if let Operation::XOR(l, r) = op {
-        let carry = if test_half_add(position, l, ops) {
-            r
-        } else if test_half_add(position, r, ops) {
-            l
-        } else {
-            if test_carry(position, l, prev_carry, ops) {
-                return TestResult::Half(r.clone());
-            } else if test_carry(position, r, prev_carry, ops) {
-                return TestResult::Half(l.clone());
-            }
-            println!("Both are bad!");
-            return TestResult::Root;
-        };
-
-        if !test_carry(position, carry, prev_carry, ops) {
-            return TestResult::Carry(carry.clone());
-        }
-
-        TestResult::Ok(carry.clone())
-    } else {
-        TestResult::Root
-    }
-}
-
-fn find_half_add(position: usize, ops: &HashMap<String, Operation>) -> Option<String> {
+    fixed: &HashSet<String>,
+) -> Option<String> {
     for k in ops.keys() {
-        if test_half_add(position, k, ops) {
+        if !fixed.contains(k) && test_and(key_a, key_b, k, ops) {
             return Some(k.clone());
         }
     }
     None
 }
-fn find_carry(
+
+fn test_carry(
     position: usize,
-    prev_carry: &Option<String>,
+    key: &str,
+    prev_v: &str,
+    prev_c: &str,
     ops: &HashMap<String, Operation>,
-) -> Option<String> {
+) -> bool {
+    let x_p = format!("x{:0>2}", position - 1);
+    let y_p = format!("y{:0>2}", position - 1);
+    let value = ops.get(key).unwrap();
+    if let Operation::OR(l, r) = value {
+        (test_and(&x_p, &y_p, l, ops) && test_and(prev_v, prev_c, r, ops))
+            || (test_and(&x_p, &y_p, r, ops) && test_and(prev_v, prev_c, l, ops))
+    } else {
+        false
+    }
+}
+
+fn solve_carry(
+    position: usize,
+    key: &str,
+    prev_v: &str,
+    prev_c: &str,
+    ops: &mut HashMap<String, Operation>,
+    fixed: &mut HashSet<String>,
+    swaps: &mut HashSet<String>,
+) -> String {
+    let x_p = format!("x{:0>2}", position - 1);
+    let y_p = format!("y{:0>2}", position - 1);
+
+    let value = ops.get(key).unwrap().clone();
+    if let Operation::OR(l, r) = value {
+        let (yx, vc) = if test_and(&x_p, &y_p, &l, ops) || test_and(prev_v, prev_c, &r, ops) {
+            (l, r)
+        } else if test_and(&x_p, &y_p, &r, ops) || test_and(prev_v, prev_c, &l, ops) {
+            (r, l)
+        } else {
+            todo!("both are bad!");
+        };
+
+        if !test_and(&x_p, &y_p, &yx, ops) {
+            let correct_yx = find_and(&x_p, &y_p, ops, fixed).unwrap();
+            swap(&yx, &correct_yx, ops, fixed, swaps);
+        } else if !test_and(prev_v, prev_c, &vc, ops) {
+            if let Operation::AND(l, r) = ops.get(&vc).unwrap().clone() {
+                if l == prev_v {
+                    swap(&r, &prev_c.to_string(), ops, fixed, swaps);
+                } else if l == prev_c {
+                    swap(&r, &prev_v.to_string(), ops, fixed, swaps);
+                } else if r == prev_v {
+                    swap(&l, &prev_c.to_string(), ops, fixed, swaps);
+                } else if r == prev_c {
+                    swap(&l, &prev_v.to_string(), ops, fixed, swaps);
+                }
+            } else {
+                let correct_vc = find_and(prev_v, prev_c, ops, fixed).unwrap();
+                swap(&vc, &correct_vc, ops, fixed, swaps);
+            }
+        }
+
+        return key.to_string();
+    } else {
+        for k in ops.keys() {
+            if !fixed.contains(k) && test_carry(position, k, prev_v, prev_c, ops) {
+                return k.clone();
+            }
+        }
+    }
+
+    panic!("No suitable carry found");
+}
+
+/*
+zN <- vN ^ cN
+vN <- xN ^ yN
+cN <- ((yP & xP) | (vP & cP))
+*/
+#[derive(Debug)]
+pub struct LineSolution {
+    value: String,
+    carry: Option<String>,
+}
+
+fn swap(
+    a_key: &String,
+    b_key: &String,
+    ops: &mut HashMap<String, Operation>,
+    fixed: &mut HashSet<String>,
+    swaps: &mut HashSet<String>,
+) {
+    let (a, b) = (ops.remove(a_key).unwrap(), ops.remove(b_key).unwrap());
+    ops.insert(a_key.clone(), b);
+    ops.insert(b_key.clone(), a);
+    fixed.insert(a_key.clone());
+    fixed.insert(b_key.clone());
+    swaps.insert(a_key.clone());
+    swaps.insert(b_key.clone());
+}
+fn solve_position(
+    position: usize,
+    prev: Option<LineSolution>,
+    ops: &mut HashMap<String, Operation>,
+    fixed: &mut HashSet<String>,
+    swaps: &mut HashSet<String>,
+) -> LineSolution {
+    let key = format!("z{:0>2}", position);
+    let value = ops.get(&key).unwrap();
+
+    if let Some(prev) = prev {
+        let prev_value = prev.value;
+        if let Some(prev_carry) = prev.carry {
+            // test vN -> If not, then find vN
+            // test cN -> If not, then find cN
+            let key = format!("z{:0>2}", position);
+            let test_result = test_position(position, &key, &prev_value, &prev_carry, ops);
+            match test_result {
+                TestResult::Ok { carry, value } => {
+                    fixed.insert(value.clone());
+                    fixed.insert(carry.clone());
+                    LineSolution {
+                        value,
+                        carry: Some(carry),
+                    }
+                }
+                TestResult::Value { value, carry } => {
+                    let correct_value = find_half_add(position, ops, &fixed).unwrap();
+                    swap(&value, &correct_value, ops, fixed, swaps);
+                    LineSolution {
+                        value: correct_value,
+                        carry: Some(carry),
+                    }
+                }
+                TestResult::Carry { carry, value } => {
+                    let correct = solve_carry(
+                        position,
+                        &carry,
+                        &prev_value,
+                        &prev_carry,
+                        ops,
+                        fixed,
+                        swaps,
+                    );
+                    LineSolution {
+                        value,
+                        carry: Some(correct),
+                    }
+                }
+                TestResult::Root => {
+                    println!("Find root");
+                    let (correct, value, carry) =
+                        find_position(position, &prev_value, &prev_carry, &ops, &fixed).unwrap();
+                    swap(&correct, &key, ops, fixed, swaps);
+                    LineSolution {
+                        value,
+                        carry: Some(carry),
+                    }
+                }
+            }
+        } else {
+            if let Operation::XOR(l, r) = value {
+                fixed.insert(l.clone());
+                fixed.insert(r.clone());
+                LineSolution {
+                    value: l.clone(),
+                    carry: Some(r.clone()),
+                }
+            } else {
+                todo!("Second")
+            }
+        }
+    } else {
+        if !test_half_add(position, &key, ops) {
+            todo!("First")
+        } else {
+            fixed.insert(key.clone());
+            LineSolution {
+                value: key.clone(),
+                carry: None,
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TestResult {
+    Ok { carry: String, value: String },
+    Root,
+    Carry { carry: String, value: String },
+    Value { carry: String, value: String },
+}
+
+fn test_position(
+    position: usize,
+    key: &str,
+    prev_v: &str,
+    prev_c: &str,
+    ops: &HashMap<String, Operation>,
+) -> TestResult {
+    let op = ops.get(key).unwrap();
+    if let Operation::XOR(l, r) = op {
+        let (value, carry) = if test_half_add(position, l, ops) {
+            (l, r)
+        } else if test_half_add(position, r, ops) {
+            (r, l)
+        } else {
+            if test_carry(position, l, prev_v, prev_c, ops) {
+                return TestResult::Value {
+                    value: r.clone(),
+                    carry: l.clone(),
+                };
+            } else if test_carry(position, r, prev_v, prev_c, ops) {
+                return TestResult::Value {
+                    value: l.clone(),
+                    carry: r.clone(),
+                };
+            }
+            // println!("root => both!");
+            return TestResult::Root;
+        };
+
+        if !test_carry(position, carry, prev_v, prev_c, ops) {
+            return TestResult::Carry {
+                carry: carry.clone(),
+                value: value.clone(),
+            };
+        }
+
+        TestResult::Ok {
+            carry: carry.clone(),
+            value: value.clone(),
+        }
+    } else {
+        TestResult::Root
+    }
+}
+fn find_position(
+    position: usize,
+    prev_v: &str,
+    prev_c: &str,
+    ops: &HashMap<String, Operation>,
+    fixed: &HashSet<String>,
+) -> Option<(String, String, String)> {
     for k in ops.keys() {
-        if test_carry(position, k, prev_carry, ops) {
-            return Some(k.clone());
+        if !fixed.contains(k) {
+            if let TestResult::Ok { carry, value } =
+                test_position(position, &k, prev_v, prev_c, ops)
+            {
+                return Some((k.clone(), value, carry));
+            }
         }
     }
     None
@@ -257,37 +446,19 @@ impl Solver for Problem {
         // println!("{}", input.get("z04").unwrap().to_str_rec("z00", input));
         // println!("{}", input.get("z05").unwrap().to_str_rec("z00", input));
 
-        let mut prev_carry = None;
+        // let mut prev_carry = None;
         let mut ops = input.clone();
-        for i in 1.. {
+        let mut fixed = HashSet::new();
+        let mut swaps = HashSet::new();
+        let mut prev = None;
+        for i in 0.. {
             let key = format!("z{:0>2}", i);
             if !ops.contains_key(&key) {
                 break;
             }
-            let result = test_position(i, &prev_carry, &ops);
-            match result {
-                TestResult::Ok(next_carry) => prev_carry = Some(next_carry),
-                TestResult::Root => {
-                    // todo!("Root {i}")
-                }
-                TestResult::Carry(wrong_carry) => {
-                    let half = find_carry(i, &prev_carry, &ops).unwrap();
-                    println!("Swap {half} {wrong_carry}");
-                    let (a, b) = (
-                        ops.remove(&wrong_carry).unwrap(),
-                        ops.remove(&half).unwrap(),
-                    );
-                    ops.insert(wrong_carry, b);
-                    ops.insert(half, a);
-                }
-                TestResult::Half(wrong_half) => {
-                    let half = find_half_add(i, &ops).unwrap();
-                    println!("Swap {half} {wrong_half}");
-                    let (a, b) = (ops.remove(&wrong_half).unwrap(), ops.remove(&half).unwrap());
-                    ops.insert(wrong_half, b);
-                    ops.insert(half, a);
-                }
-            }
+
+            println!("{i}, {:?}", swaps.iter().sorted().join(","));
+            prev = Some(solve_position(i, prev, &mut ops, &mut fixed, &mut swaps));
         }
 
         todo!()

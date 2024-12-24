@@ -187,10 +187,13 @@ fn get_length(
     let result = if depth == max_depth {
         paths.iter().map(|p| p.len()).min().unwrap() + 1
     } else {
+        if depth == max_depth - 2 {
+            println!("New call")
+        }
         paths
             .iter()
             .map(|p| -> usize {
-                vec![Action::Push]
+                let result = vec![Action::Push]
                     .into_iter()
                     .chain(p.iter().map(|v| Action::Move(v.clone())))
                     .chain(vec![Action::Push])
@@ -204,7 +207,11 @@ fn get_length(
                             cache,
                         )
                     })
-                    .sum()
+                    .sum();
+                if depth == max_depth - 2 {
+                    println!("{:?} {result}", p);
+                }
+                result
             })
             .min()
             .unwrap()
